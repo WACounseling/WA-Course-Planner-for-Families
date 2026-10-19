@@ -5,8 +5,8 @@
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
   const SKEY = 'wa_family_planner_v1';
-  const BUILD = 'f2026.10.19-a';
-  const EXPECT = { 'catalog.js': '2', 'cocurriculars.js': '1', 'engine.js': 'f1', 'reference.js': '2', 'planio.js': '1', 'family.js': '1', 'printview.js': '1' };
+  const BUILD = 'f2026.10.19-b';
+  const EXPECT = { 'catalog.js': '2', 'cocurriculars.js': '1', 'engine.js': 'f1', 'reference.js': '2', 'planio.js': '1', 'combo.js': '1', 'family.js': '1', 'printview.js': '1' };
   const VOPT = { lenient: true };            // warn-only validation
   const ORD = { 9: '9th', 10: '10th', 11: '11th', 12: '12th' };
   const fmt = n => (Math.round(n * 100) / 100).toString();
@@ -105,7 +105,7 @@
       const rowFor = (slot, label, summer) => {
         selRefs[g][slot.k] = {};
         const mk = half => {
-          const sel = h('select', { 'aria-label': ORD[g] + ' grade ' + label + (summer ? '' : half ? ' spring' : ' fall or full year') });
+          const sel = h('select', { 'data-cb': '1', 'aria-label': ORD[g] + ' grade ' + label + (summer ? '' : half ? ' spring' : ' fall or full year') });
           sel.addEventListener('change', () => onPick(g, slot.k, half, sel.value, !!summer)); selRefs[g][slot.k][half] = sel; return sel;
         };
         const notes = h('div', { class: 'notes' }); noteRefs[g][slot.k] = notes;
@@ -171,6 +171,7 @@
     const Pb = E.problems(v, VOPT);
     renderChips(Pb); renderTracker(Pb.tracker); renderTalk(Pb); renderNav(Pb); renderGlance();
     if (userAction) celebrateDiff(Pb.tracker); else prevMet = metSet(Pb.tracker);
+    if (WA.combo) WA.combo.refreshAll();
     persist();
   }
   const stClass = x => (!x ? '' : (x.state === 'blocked' || x.state === 'approval') ? 'warn' : '');
@@ -298,11 +299,12 @@
     ['eng', 'math', 'ss', 'sci', 'wl', 'cs', 'pa', 'va', 'pe', 'deb', 'jr'].forEach(d => { o += '<optgroup label="' + esc(CAT.DEPTS[d]) + '">'; CAT.list.filter(c => c.dept === d).forEach(c => c.lv.forEach(lv => { o += '<option value="' + c.id + '|' + lv + '">' + esc(E.courseLabel(c, lv)) + '</option>'; })); o += '</optgroup>'; });
     return (equivHTML = o);
   }
-  function renderTransfers() {
+  function renderTransfers() { renderTransfersRaw(); if (WA.combo) WA.combo.enhanceAll(); }
+  function renderTransfersRaw() {
     const host = $('#transferRows'); host.innerHTML = '';
     P().prior.transfers.forEach((t, i) => {
       const title = h('input', { type: 'text', value: t.title || '', placeholder: 'e.g., Biology — another school', maxlength: 60 }); title.addEventListener('input', () => { t.title = title.value; persist(); });
-      const eq = h('select', { html: equivOptions() }); eq.value = t.equiv || '';
+      const eq = h('select', { html: equivOptions(), 'data-cb': '1' }); eq.value = t.equiv || '';
       const area = h('select', { html: AREAS.map(a => '<option value="' + a[0] + '">' + a[1] + '</option>').join('') }); area.value = t.area || 'elec'; area.disabled = !!t.equiv;
       const lang = h('select', { html: Object.keys(CAT.LANGS).map(k => '<option value="' + k + '">' + CAT.LANGS[k] + '</option>').join('') }); lang.value = t.lang || 'fr';
       const cr = h('select', { html: [0.5, 1, 1.5, 2, 2.5, 3, 4].map(n => '<option value="' + n + '">' + n + '</option>').join('') }); cr.value = t.cr || 1;
@@ -321,11 +323,12 @@
     const cats = []; COC.list.forEach(a => { if (!cats.includes(a.cat)) cats.push(a.cat); });
     return '<option value="">— choose an activity —</option>' + cats.map(c => '<optgroup label="' + esc(c) + '">' + COC.list.filter(a => a.cat === c).map(a => '<option value="' + esc(a.name) + '">' + esc(a.name) + '</option>').join('') + '</optgroup>').join('') + '<option value="__other">Other (write in)…</option>';
   }
-  function renderCoc() {
+  function renderCoc() { renderCocRaw(); if (WA.combo) WA.combo.enhanceAll(); }
+  function renderCocRaw() {
     const host = $('#cocRows'); host.innerHTML = ''; const list = P().cocurr; if (!list.length) list.push({ name: '', status: 'active' });
     list.forEach((c, i) => {
       const known = !c.name || COC.list.some(a => a.name === c.name);
-      const act = h('select', { html: cocOptions(), 'aria-label': 'Activity' }); act.value = known ? c.name : '__other';
+      const act = h('select', { html: cocOptions(), 'data-cb': '1', 'aria-label': 'Activity' }); act.value = known ? c.name : '__other';
       const other = h('input', { type: 'text', placeholder: 'Activity name', value: known ? '' : c.name, maxlength: 100 }); other.style.display = known ? 'none' : '';
       const stat = h('select', { html: COC.STATUS.map(s => '<option value="' + s.v + '">' + s.label + '</option>').join(''), 'aria-label': 'Participation' }); stat.value = c.status || 'active';
       const hint = h('small', { text: noteFor(c.name) });
@@ -462,7 +465,7 @@
     syncBound(); $('#showAll').checked = !!S.showAll; labelGrades(); renderTabs(); renderTransfers(); renderCoc(); $$('#grades select').forEach(s => { delete s.dataset.sig; }); update(false);
   }
   function init() {
-    loadStore(); initBindings(); buildGrades(); renderHelp(); renderRef();
+    loadStore(); initBindings(); buildGrades(); if (WA.combo) WA.combo.enhanceAll(); renderHelp(); renderRef();
     const fp = document.querySelector('.foot p'); if (fp) fp.appendChild(h('span', { class: 'build', text: ' Build ' + BUILD + '.' }));
     $('#addTransfer').addEventListener('click', () => { P().prior.transfers.push({ title: '', equiv: '', area: 'elec', cr: 1, when: '9', lang: 'fr' }); renderTransfers(); update(true); });
     $('#addCoc').addEventListener('click', () => { P().cocurr.push({ name: '', status: 'active' }); renderCoc(); });
