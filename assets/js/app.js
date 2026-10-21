@@ -5,8 +5,8 @@
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
   const SKEY = 'wa_family_planner_v1';
-  const BUILD = 'f2026.10.19-b';
-  const EXPECT = { 'catalog.js': '2', 'cocurriculars.js': '1', 'engine.js': 'f1', 'reference.js': '2', 'planio.js': '1', 'combo.js': '1', 'family.js': '1', 'printview.js': '1' };
+  const BUILD = 'f2026.10.19-c';
+  const EXPECT = { 'catalog.js': '3', 'cocurriculars.js': '1', 'engine.js': 'f1', 'reference.js': '2', 'planio.js': '1', 'combo.js': '1', 'family.js': '1', 'printview.js': '1' };
   const VOPT = { lenient: true };            // warn-only validation
   const ORD = { 9: '9th', 10: '10th', 11: '11th', 12: '12th' };
   const fmt = n => (Math.round(n * 100) / 100).toString();
