@@ -5,8 +5,8 @@
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
   const SKEY = 'wa_family_planner_v1';
-  const BUILD = 'f2026.10.19-c';
-  const EXPECT = { 'catalog.js': '3', 'cocurriculars.js': '1', 'engine.js': 'f1', 'reference.js': '2', 'planio.js': '1', 'combo.js': '1', 'family.js': '1', 'printview.js': '1' };
+  const BUILD = 'f2026.10.19-d';
+  const EXPECT = { 'catalog.js': '4', 'cocurriculars.js': '1', 'engine.js': 'f2', 'reference.js': '3', 'planio.js': '2', 'combo.js': '1', 'family.js': '1', 'printview.js': '1' };
   const VOPT = { lenient: true };            // warn-only validation
   const ORD = { 9: '9th', 10: '10th', 11: '11th', 12: '12th' };
   const fmt = n => (Math.round(n * 100) / 100).toString();
@@ -292,7 +292,7 @@
 
   /* ---------------- transfer credit + cocurricular rows ---------------- */
   const AREAS = [['eng', 'English'], ['math', 'Mathematics'], ['ss', 'Social Studies'], ['sci', 'Science'], ['wl', 'World Language'], ['pe', 'Physical Education'], ['fa', 'Fine Arts'], ['elec', 'Elective']];
-  const WHEN = [['9', 'Grade 9'], ['10', 'Grade 10'], ['11', 'Grade 11'], ['12', 'Grade 12'], ['s9', 'Summer after 9th'], ['s10', 'Summer after 10th'], ['s11', 'Summer after 11th']];
+  const WHEN = [['8', 'Middle School (before 9th)'], ['9', 'Grade 9'], ['10', 'Grade 10'], ['11', 'Grade 11'], ['12', 'Grade 12'], ['s9', 'Summer after 9th'], ['s10', 'Summer after 10th'], ['s11', 'Summer after 11th']];
   let equivHTML = null;
   function equivOptions() {
     if (equivHTML) return equivHTML; let o = '<option value="">— No Woodward equivalent (enter subject area) —</option>';
@@ -360,7 +360,7 @@
   function setDot(key, st, label) { const el = document.querySelector('[data-dot="' + key + '"]'); if (!el) return; el.className = 'sn-dot s-' + st; el.title = label; el.setAttribute('aria-label', label); }
   function renderNav(Pb) {
     setDot('plans', S.classOf ? 'done' : 'part', S.classOf ? 'Graduation year chosen' : 'Choose a graduation year');
-    const pr = P().prior, hasPrior = +pr.psCredit > 0 || pr.civics8 || pr.gat || pr.placement || pr.msLang || pr.msMath !== 'alg1' || pr.transfers.length > 0;
+    const pr = P().prior, hasPrior = +pr.psCredit > 0 || pr.civics8 || pr.placement || pr.msLang || pr.msMath !== 'alg1' || pr.transfers.length > 0;
     setDot('prior', hasPrior ? 'done' : 'none', hasPrior ? 'Prior credit / placement entered' : 'Optional — nothing entered');
     let done = 0, warn = 0, sel = 0;
     E.GRADES.forEach(g => {
@@ -433,8 +433,8 @@
   function priorLines(pr) {
     const ms = [], mathTxt = { alg1: 'Algebra 1 (CP/EP)', alg1hp: 'Algebra 1 (HP)', geohp: 'Algebra 1 (HP) + Geometry (HP)' }[pr.msMath];
     if (+pr.psCredit > 0) ms.push('Physical Science (8th grade): ' + pr.psCredit + ' unit science credit'); if (pr.civics8) ms.push('Government & Economics HP completed in 8th grade');
-    if (mathTxt) ms.push('Middle School math: ' + mathTxt); if (pr.msLang) { const [c, l] = pr.msLang.split(':'); ms.push('Middle School ' + CAT.LANGS[c] + ': Level ' + (l === '2' ? '1 & 2' : '1') + ' complete'); }
-    if (pr.gat) ms.push('GAT HP completed'); if (pr.placement) ms.push('Language placement / heritage speaker');
+    if (mathTxt) ms.push('Middle School math: ' + mathTxt); if (pr.msLang) { const [c, l] = pr.msLang.split(':'); ms.push(CAT.LANGS[c] + ' completed before 9th grade: ' + (+l === 1 ? 'Level 1' : 'Levels 1–' + l) + ' (no Upper School credit)'); }
+    if (pr.placement) ms.push('Language placement / heritage speaker');
     pr.transfers.filter(x => +x.cr > 0).forEach(x => { const q = E.parseSel(x.equiv); ms.push('Transfer: ' + (x.title || (q ? E.courseLabel(q.c, q.lv) : 'credit')) + ' — ' + x.cr + ' unit(s)'); });
     return ms;
   }
