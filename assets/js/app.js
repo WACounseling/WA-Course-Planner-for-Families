@@ -5,8 +5,8 @@
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
   const SKEY = 'wa_family_planner_v1';
-  const BUILD = 'f2026.10.19-d';
-  const EXPECT = { 'catalog.js': '4', 'cocurriculars.js': '1', 'engine.js': 'f2', 'reference.js': '3', 'planio.js': '2', 'combo.js': '1', 'family.js': '1', 'printview.js': '1' };
+  const BUILD = 'f2026.10.19-e';
+  const EXPECT = { 'catalog.js': '4', 'cocurriculars.js': '1', 'engine.js': 'f2', 'reference.js': '3', 'planio.js': '2', 'combo.js': '1', 'sound.js': '1', 'family.js': '1', 'printview.js': '1' };
   const VOPT = { lenient: true };            // warn-only validation
   const ORD = { 9: '9th', 10: '10th', 11: '11th', 12: '12th' };
   const fmt = n => (Math.round(n * 100) / 100).toString();
@@ -278,7 +278,7 @@
   function celebrateDiff(t) { const now = metSet(t); if (prevMet) t.areas.forEach(a => { if (a.met && !prevMet.has(a.key)) celQueue.push(a); }); prevMet = now; runCel(); }
   function runCel() {
     if (celBusy || !celQueue.length) return; celBusy = true;
-    const a = celQueue.shift(), host = $('#celebrate'); host.innerHTML = ''; host.classList.add('on');
+    const a = celQueue.shift(), _snd = WA.sound && WA.sound.play(a.key === 'total' ? 'finale' : 'musicbox'), host = $('#celebrate'); host.innerHTML = ''; host.classList.add('on');
     const colors = ['#f4a72a', '#9d2235', '#47a972', '#6fccdd', '#ffc513', '#df6460', '#002e53'], reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     host.appendChild(h('div', { class: 'cel-card' }, h('div', { class: 'icons' }, h('img', { src: 'assets/img/wa-icon.png', alt: '' }), h('span', { html: CAP })), h('h4', { text: a.key === 'total' ? 'All 22 units planned!' : a.label + ' complete!' }), h('p', { text: a.key === 'total' ? 'Ready to graduate' : 'Graduation requirement met' })));
     if (!reduce) for (let i = 0; i < 30; i++) {
@@ -460,6 +460,16 @@
     S = fresh(); fullRender(); msg('Everything saved on this device was cleared.', 'ok');
   }
 
+  /* ---------------- celebration sound controls ---------------- */
+  function initSound() {
+    const S = WA.sound, btn = $('#sndBtn'), vol = $('#sndVol'); if (!S || !btn || !vol) return;
+    const sync = () => { const on = S.isOn(); btn.setAttribute('aria-pressed', String(on)); btn.textContent = on ? '🔊 Sound on' : '🔇 Sound off'; vol.disabled = !on; };
+    btn.addEventListener('click', () => { S.setOn(!S.isOn()); sync(); if (S.isOn()) S.play('musicbox'); });
+    vol.value = Math.round(S.volume() * 100);
+    vol.addEventListener('input', () => S.setVolume(vol.value / 100)); vol.addEventListener('change', () => S.play('musicbox'));
+    sync();
+  }
+
   /* ---------------- boot ---------------- */
   function fullRender() {
     syncBound(); $('#showAll').checked = !!S.showAll; labelGrades(); renderTabs(); renderTransfers(); renderCoc(); $$('#grades select').forEach(s => { delete s.dataset.sig; }); update(false);
@@ -473,8 +483,8 @@
     $('#copyBtn').addEventListener('click', copyPlan); $('#clearPlan').addEventListener('click', clearPlan);
     $('#saveAll').addEventListener('click', saveAll); $('#saveOne').addEventListener('click', saveOne); $('#printBtn').addEventListener('click', printPlan);
     $('#openFile').addEventListener('change', e => { if (e.target.files[0]) openFile(e.target.files[0]); e.target.value = ''; }); $('#wipeAll').addEventListener('click', wipeAll);
-    fullRender(); initNav(); showSync();
+    fullRender(); initNav(); initSound(); showSync();
   }
-  WA.app = { BUILD, syncProblems, showSync, getState: () => S, setState: s => { S = s; fullRender(); }, update, view, printData, switchPlan, stats, talkData };
+  WA.app = { celebrate: a => { celQueue.push(a); runCel(); }, BUILD, syncProblems, showSync, getState: () => S, setState: s => { S = s; fullRender(); }, update, view, printData, switchPlan, stats, talkData };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
