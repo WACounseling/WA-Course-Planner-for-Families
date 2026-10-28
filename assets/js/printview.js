@@ -1,7 +1,7 @@
 /* Builds the print-only layout (Print / Save as PDF). Page 1 plan, page 2 reference, page 3 questions. */
 (function (root) {
   const WA = root.WA = root.WA || {};
-  (WA.versions = WA.versions || {})['printview.js'] = '1';
+  (WA.versions = WA.versions || {})['printview.js'] = '4';
   const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const fmt = n => String(Math.round(Number(n) * 100) / 100);
   const ord = g => ({ 9: '9th', 10: '10th', 11: '11th', 12: '12th' }[g] || String(g));
@@ -44,6 +44,24 @@
     if (d.notes) o.push('<div class="pv-note"><b>My notes:</b> ' + esc(d.notes) + '</div>');
     o.push('<div class="pv-disc"><div class="pv-sec">' + esc(d.disclaimer.title.toUpperCase()) + '</div><div class="pv-small pv-dtext">' + esc(d.disclaimer.text) + '</div></div>');
     o.push('</div>');
+    // page 2: college & career interests (always), then the graduation distinctions chosen (2 x 2 grid with clear space between them)
+    {
+      const it = d.interests || {}, dists = d.distinctions || [];
+      const qa = (q, a) => '<div class="pv-qa"><div class="pv-sh">' + esc(q) + '</div>' + (a ? '<div class="pv-ans">' + esc(a) + '</div>' : '<div class="pv-lines"></div><div class="pv-lines"></div>') + '</div>';
+      o.push('<div class="pv-page pv-break"><div class="pv-h2">COLLEGE &amp; CAREER INTERESTS</div><div class="pv-sub">' + esc(d.planName) + (d.classOf ? ' · Projected graduation: Spring ' + esc(d.classOf) : '') + '</div><div class="pv-rule thin"></div>');
+      o.push(qa('COLLEGES OR UNIVERSITIES I AM INTERESTED IN', it.colleges) + qa('MAJOR OR PATH OF STUDY I HAVE IN MIND', it.major));
+      if (dists.length) {
+        o.push('<div class="pv-h2" style="margin-top:14pt">GRADUATION DISTINCTIONS</div><div class="pv-sub">Courses are projected from the plan; tick each box when the requirement has actually been completed.</div><div class="pv-rule thin"></div><div class="pv-dgrid">');
+        dists.forEach(x => {
+          o.push('<div class="pv-dist"><div class="pv-sec">DISTINCTION IN ' + esc(x.name.toUpperCase()) + '</div><div class="pv-small">Monitored by the ' + esc(x.coordinator) + '.  ' + esc(x.apply) + '</div>');
+          o.push('<div class="pv-dline"><b>Course requirements:</b>  ' + esc(x.statusText) + '</div>');
+          x.groups.forEach(g => o.push('<div class="pv-dline' + (g.met ? ' met' : '') + '">' + esc(g.text) + '</div>'));
+          o.push('<div class="pv-sh">ADDITIONAL REQUIREMENTS — CHECK EACH BOX WHEN COMPLETED</div>' + x.checks.map(c => '<div class="pv-dchk">' + esc(c) + '</div>').join('') + '<div class="pv-dchk pv-dall">☐ Completed — Distinction in ' + esc(x.name) + '</div></div>');
+        });
+        o.push('</div>');
+      }
+      o.push('</div>');
+    }
     if (d.opts.reference) {
       o.push('<div class="pv-page pv-break"><div class="pv-h2">GRADUATION, SCHOLARSHIP &amp; ELIGIBILITY REFERENCE</div><div class="pv-sub">Woodward Academy requirements, State of Georgia requirements, HOPE &amp; Zell Miller, NCAA · current as of ' + esc(d.reference.updated) + '</div><div class="pv-rule thin"></div><div class="pv-refcols">');
       d.reference.sections.forEach(s => {
