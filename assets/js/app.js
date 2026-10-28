@@ -1,12 +1,12 @@
 /* Woodward Academy Four-Year Course Planner — Students & Families (no sign-in, nothing leaves the device) */
 (function () {
   'use strict';
-  const WA = window.WA, E = WA.engine, CAT = WA.catalog, COC = WA.cocurr, REF = WA.reference, FAM = WA.family, IO = WA.planio, PV = WA.printview;
+  const WA = window.WA, E = WA.engine, CAT = WA.catalog, COC = WA.cocurr, REF = WA.reference, FAM = WA.family, IO = WA.planio, PV = WA.printview, DIST = WA.distinctions, DUI = WA.distui;
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
   const SKEY = 'wa_family_planner_v1';
-  const BUILD = 'f2026.10.19-e';
-  const EXPECT = { 'catalog.js': '4', 'cocurriculars.js': '1', 'engine.js': 'f2', 'reference.js': '3', 'planio.js': '2', 'combo.js': '1', 'sound.js': '1', 'family.js': '1', 'printview.js': '1' };
+  const BUILD = 'f2026.10.19-i';
+  const EXPECT = { 'catalog.js': '6', 'cocurriculars.js': '1', 'engine.js': 'f4', 'reference.js': '4', 'distinctions.js': '3', 'planio.js': '4', 'combo.js': '1', 'distui.js': '2', 'sound.js': '1', 'family.js': '2', 'printview.js': '4' };
   const VOPT = { lenient: true };            // warn-only validation
   const ORD = { 9: '9th', 10: '10th', 11: '11th', 12: '12th' };
   const fmt = n => (Math.round(n * 100) / 100).toString();
@@ -34,16 +34,16 @@
   }
 
   /* ---------------- state: up to 3 plans ---------------- */
-  const blankPlan = name => { const b = E.emptyState(); return { name, plan: b.plan, summer: b.summer, prior: b.prior, cocurr: [], notes: '' }; };
-  const fromSan = sp => ({ name: sp.name, plan: sp.plan, summer: sp.summer, prior: sp.prior, cocurr: sp.cocurr, notes: sp.notes });
+  const blankPlan = name => { const b = E.emptyState(); return { name, plan: b.plan, summer: b.summer, prior: b.prior, cocurr: [], notes: '', colleges: '', major: '', dist: b.dist }; };
+  const fromSan = sp => ({ name: sp.name, plan: sp.plan, summer: sp.summer, prior: sp.prior, cocurr: sp.cocurr, notes: sp.notes, colleges: sp.colleges || '', major: sp.major || '', dist: sp.dist });
   const fresh = () => ({ classOf: '', showAll: false, cur: 0, plans: [blankPlan('Plan A'), blankPlan('Plan B'), blankPlan('Plan C')] });
   let S = fresh();
   const P = () => S.plans[S.cur];
   function view(i) {
     const p = S.plans[i == null ? S.cur : i];
-    return { info: { studentName: '', studentEmail: '', counselorName: '', counselorEmail: '', classOf: S.classOf, date: '', notes: p.notes }, prior: p.prior, plan: p.plan, summer: p.summer, cocurr: p.cocurr, override: { on: false, reason: '' } };
+    return { info: { studentName: '', studentEmail: '', counselorName: '', counselorEmail: '', classOf: S.classOf, date: '', notes: p.notes }, prior: p.prior, plan: p.plan, summer: p.summer, cocurr: p.cocurr, dist: p.dist, override: { on: false, reason: '' } };
   }
-  const hasWork = p => !!(p.notes.trim() || p.cocurr.some(c => c.name) || p.prior.transfers.length || +p.prior.psCredit > 0 || p.prior.civics8 || p.prior.msLang ||
+  const hasWork = p => !!(p.notes.trim() || p.colleges.trim() || p.major.trim() || Object.keys(p.dist.interest).length || p.cocurr.some(c => c.name) || p.prior.transfers.length || +p.prior.psCredit > 0 || p.prior.civics8 || p.prior.msLang ||
     E.GRADES.some(g => E.ALL_SLOTS.some(s => p.plan[g][s.k].f || p.plan[g][s.k].s)));
 
   /* ---------------- saving on this device (localStorage; nothing is sent anywhere) ---------------- */
@@ -169,13 +169,19 @@
       if (g < 12) E.SUMMER_SLOTS.forEach(s => cellsFor(s, true));
     });
     const Pb = E.problems(v, VOPT);
-    renderChips(Pb); renderTracker(Pb.tracker); renderTalk(Pb); renderNav(Pb); renderGlance();
-    if (userAction) celebrateDiff(Pb.tracker); else prevMet = metSet(Pb.tracker);
+    const D = DIST.evaluate(E.allTaken(v), P().dist); renderChips(Pb); renderTracker(Pb.tracker); renderDist(D); renderTalk(Pb); renderNav(Pb); renderGlance();
+    if (userAction) celebrateDiff(Pb.tracker, D); else prevMet = metSet(Pb.tracker, D);
     if (WA.combo) WA.combo.refreshAll();
     persist();
   }
   const stClass = x => (!x ? '' : (x.state === 'blocked' || x.state === 'approval') ? 'warn' : '');
-  const metSet = t => new Set(t.areas.filter(a => a.met).map(a => a.key));
+  const metSet = (t, D) => new Set(t.areas.filter(a => a.met).map(a => a.key).concat((D || []).filter(x => x.interested && x.met).map(x => 'dist:' + x.id)));
+  /* ---------------- graduation distinctions ---------------- */
+  const onInterest = (id, on) => { if (on) P().dist.interest[id] = true; else delete P().dist.interest[id]; update(false); };
+  function renderDist(D) {
+    DUI.render($('#distTrack'), D, onInterest, { otherNote: 'The other requirements (application, hours, capstone project, portfolio, averages and options) are on the checklist on the printout.' });
+    const want = D.filter(x => x.interested); setDot('dist', !want.length ? 'none' : want.every(x => x.met) ? 'done' : 'part', !want.length ? 'Optional — none chosen' : want.every(x => x.met) ? 'All chosen distinctions complete' : 'In progress');
+  }
   let prevMet = null;
 
   function renderChips(Pb) {
@@ -275,12 +281,19 @@
   const STAR = '<svg viewBox="0 0 24 24"><path d="M12 1.5l3 6.6 7.2.8-5.4 4.9 1.5 7.1L12 17.2 5.7 20.9l1.5-7.1L1.8 8.9 9 8.1z" fill="%C" stroke="#fff" stroke-width="1"/></svg>';
   const CAP = '<svg class="cap" viewBox="0 0 96 76" aria-hidden="true"><polygon points="48,6 94,26 48,46 2,26" fill="#002e53"/><path d="M22 38v16c0 7 12 14 26 14s26-7 26-14V38L48 50z" fill="#4c768e"/><path d="M84 29v28" stroke="#f4a72a" stroke-width="3.5" stroke-linecap="round"/><circle cx="84" cy="61" r="5.5" fill="#f4a72a"/><polygon points="48,6 94,26 48,46 2,26" fill="none" stroke="#fff" stroke-width="1.2" opacity=".5"/></svg>';
   const celQueue = []; let celBusy = false;
-  function celebrateDiff(t) { const now = metSet(t); if (prevMet) t.areas.forEach(a => { if (a.met && !prevMet.has(a.key)) celQueue.push(a); }); prevMet = now; runCel(); }
+  function celebrateDiff(t, D) {
+    const now = metSet(t, D);
+    if (prevMet) {
+      t.areas.forEach(a => { if (a.met && !prevMet.has(a.key)) celQueue.push(a); });
+      (D || []).forEach(x => { if (x.interested && x.met && !prevMet.has('dist:' + x.id)) celQueue.push({ key: 'dist:' + x.id, label: 'Distinction in ' + x.name, dist: true }); });
+    }
+    prevMet = now; runCel();
+  }
   function runCel() {
     if (celBusy || !celQueue.length) return; celBusy = true;
     const a = celQueue.shift(), _snd = WA.sound && WA.sound.play(a.key === 'total' ? 'finale' : 'musicbox'), host = $('#celebrate'); host.innerHTML = ''; host.classList.add('on');
     const colors = ['#f4a72a', '#9d2235', '#47a972', '#6fccdd', '#ffc513', '#df6460', '#002e53'], reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    host.appendChild(h('div', { class: 'cel-card' }, h('div', { class: 'icons' }, h('img', { src: 'assets/img/wa-icon.png', alt: '' }), h('span', { html: CAP })), h('h4', { text: a.key === 'total' ? 'All 22 units planned!' : a.label + ' complete!' }), h('p', { text: a.key === 'total' ? 'Ready to graduate' : 'Graduation requirement met' })));
+    host.appendChild(h('div', { class: 'cel-card' }, h('div', { class: 'icons' }, h('img', { src: 'assets/img/wa-icon.png', alt: '' }), h('span', { html: CAP })), h('h4', { text: a.dist ? a.label + '!' : a.key === 'total' ? 'All 22 units planned!' : a.label + ' complete!' }), h('p', { text: a.dist ? 'Distinction courses planned' : a.key === 'total' ? 'Ready to graduate' : 'Graduation requirement met' })));
     if (!reduce) for (let i = 0; i < 30; i++) {
       const ang = (i / 30) * Math.PI * 2 + Math.random() * 0.4, dist = 150 + Math.random() * 190, st = h('span', { class: 'star', html: STAR.replace('%C', colors[i % colors.length]) });
       st.style.setProperty('--dx', Math.round(Math.cos(ang) * dist) + 'px'); st.style.setProperty('--dy', Math.round(Math.sin(ang) * dist) + 'px'); st.style.setProperty('--r', Math.round(Math.random() * 360 - 180) + 'deg');
@@ -329,7 +342,7 @@
     list.forEach((c, i) => {
       const known = !c.name || COC.list.some(a => a.name === c.name);
       const act = h('select', { html: cocOptions(), 'data-cb': '1', 'aria-label': 'Activity' }); act.value = known ? c.name : '__other';
-      const other = h('input', { type: 'text', placeholder: 'Activity name', value: known ? '' : c.name, maxlength: 100 }); other.style.display = known ? 'none' : '';
+      const other = h('input', { type: 'text', placeholder: 'Activity name', 'aria-label': 'Activity name', value: known ? '' : c.name, maxlength: 100 }); other.style.display = known ? 'none' : '';
       const stat = h('select', { html: COC.STATUS.map(s => '<option value="' + s.v + '">' + s.label + '</option>').join(''), 'aria-label': 'Participation' }); stat.value = c.status || 'active';
       const hint = h('small', { text: noteFor(c.name) });
       act.addEventListener('change', () => { if (act.value === '__other') { other.style.display = ''; c.name = other.value; } else { other.style.display = 'none'; c.name = act.value; } hint.textContent = noteFor(c.name); update(false); });
@@ -370,13 +383,14 @@
       setDot('g' + g, st, !hasSel ? 'Not started' : n ? n + ' heads-up(s)' : 'Looks good');
     });
     setDot('grades', warn ? 'part' : done === 4 ? 'done' : sel ? 'part' : 'none', warn ? 'Some heads-ups' : done === 4 ? 'All four grades planned' : sel ? 'In progress' : 'Not started');
+    const hasInt = !!(P().colleges.trim() || P().major.trim()); setDot('college', hasInt ? 'done' : 'none', hasInt ? 'Interests entered' : 'Optional — nothing entered');
     const hasCoc = P().cocurr.some(c => c.name); setDot('coc', hasCoc ? 'done' : 'none', hasCoc ? 'Activities entered' : 'Optional — nothing entered');
     setDot('notes', P().notes.trim() ? 'done' : 'none', P().notes.trim() ? 'Notes entered' : 'Optional — no notes');
     const t = Pb.tracker, n = t.areas.filter(a => a.met).length, b = $('#snTrk'); b.textContent = n + '/' + t.areas.length; b.className = 'sn-badge ' + (n === t.areas.length ? 's-done' : n ? 's-part' : 's-err');
     const tc = talkCount(talkData(Pb)), tb = $('#snTalk'); tb.textContent = String(tc); tb.className = 'sn-badge ' + (tc ? 's-part' : 's-done');
   }
   function initNav() {
-    const ids = ['s-help', 's-plans', 's-prior', 's-grades', 'grade-9', 'grade-10', 'grade-11', 'grade-12', 's-cocurr', 's-notes', 's-tracker', 's-talk', 's-ref', 's-save'];
+    const ids = ['s-help', 's-plans', 's-prior', 's-grades', 'grade-9', 'grade-10', 'grade-11', 'grade-12', 's-cocurr', 's-college', 's-notes', 's-tracker', 's-dist', 's-talk', 's-ref', 's-save'];
     const links = {}; $$('#sidenav a[data-spy]').forEach(a => { links[a.dataset.spy] = a; });
     $$('#sidenav a[href^="#"]').forEach(a => a.addEventListener('click', e => {
       const id = a.getAttribute('href').slice(1), t = document.getElementById(id); if (!t) return; e.preventDefault(); if (id === 's-ref') t.open = true;
@@ -445,6 +459,10 @@
       grades: E.GRADES.map(g => ({ grade: g, label: ORD[g] + ' Grade', year: yearLabel(g), rows: E.CORE_SLOTS.map(s => ({ label: s.label, kind: 'core', cells: E.cellText(v, g, s.k) })).concat(E.ELEC_SLOTS.map(s => ({ label: s.label, kind: 'elec', cells: E.cellText(v, g, s.k) }))), summer: g < 12 ? E.summerText(v, g) : [] })),
       areas: t.areas, ghsa: t.ghsa.map(x => ORD[x.grade] + ' ' + fmt(x.have) + '/' + x.need + (x.met ? ' ✓' : '')).concat(['12th ' + fmt(t.cum[12]) + '/22' + (t.cum[12] >= 22 ? ' ✓' : '')]).join('  ·  '),
       rigor: t.rigor.have, ncaa: t.ncaa.total, prior: priorLines(P().prior), talk: talkData(Pb), notes: P().notes.trim(),
+      interests: { colleges: P().colleges.trim(), major: P().major.trim() },
+      distinctions: DIST.evaluate(E.allTaken(v), P().dist).filter(x => x.interested).map(x => ({ name: x.name, coordinator: x.coordinator, apply: x.apply, statusText: DIST.STATUS_TEXT[x.status],
+        groups: x.groups.map(g => ({ text: DIST.groupText(g), met: g.met })),
+        checks: x.manual.map(m => '☐ ' + m.label).concat(x.manualGroups.reduce((a, g) => a.concat([g.title + ' (need ' + g.need + ')']).concat(g.items.map(m => '☐ ' + m.label)), [])) })),
       cocurr: { active: P().cocurr.filter(c => c.name && c.status === 'active').map(c => c.name), interest: P().cocurr.filter(c => c.name && c.status === 'interest').map(c => c.name) },
       disclaimer: FAM.disclaimer, reference: REF, questions: FAM.questions, opts: { reference: $('#pvRef').checked, questions: $('#pvQ').checked }
     };
